@@ -1,11 +1,11 @@
 import { BrowserWindow, ipcMain } from "electron"
 import { Menu, Tray } from "electron"
 import { screen, shell } from "electron"
-import * as fs from "fs"
 import * as path from "path"
 import { fileUrl } from "../utils/utils"
 
-import * as IOverlay from "electron-overlay"
+import * as overlay from "electron-overlay"
+import * as ovhook from "node-ovhook";
 
 enum AppWindows {
   main = "main",
@@ -18,7 +18,7 @@ class Application {
   private tray: Electron.Tray | null
   private markQuit = false
 
-  private Overlay?: typeof IOverlay
+  private Overlay?: typeof overlay
 
   constructor() {
     this.windows = new Map()
@@ -48,7 +48,7 @@ class Application {
         window.reload()
       })
 
-      window.on("close", (event) => {
+      window.on("close", (event:any) => {
         if (this.markQuit) {
           return
         }
@@ -71,7 +71,10 @@ class Application {
     const options: Electron.BrowserWindowConstructorOptions = {
       height: 600,
       width: 800,
-      show: false
+      show: false,
+      webPreferences: {
+        nodeIntegration: true
+      }
     }
     const mainWindow = this.createWindow(AppWindows.main, options)
     this.mainWindow = mainWindow
@@ -95,8 +98,17 @@ class Application {
   }
 
   public startOverlay() {
-    this.Overlay = require("electron-overlay")!
-    this.Overlay!.start()
+    console.log(ovhook);
+    console.log(ovhook.getTopWindows());
+    this.Overlay = require("electron-overlay")!;
+    this.Overlay!.start();
+    
+    for(let window of ovhook.getTopWindows()) {
+      if(window.title === "MTGA") {
+        ovhook.injectProcess(window);
+      }
+    }
+    
     this.Overlay!.setHotkeys([
       { name: "overlay.toggle", keyCode: 113, modifiers: { ctrl: true } },
       { name: "app.doit", keyCode: 114, modifiers: { ctrl: true } }
@@ -292,8 +304,8 @@ class Application {
 
   public createOsrStatusbarWindow() {
     const options: Electron.BrowserWindowConstructorOptions = {
-      height: 50,
-      width: 200,
+      height: 100,
+      width: 300,
       frame: false,
       show: false,
       transparent: true,
@@ -303,6 +315,8 @@ class Application {
         offscreen: true
       }
     }
+
+    
 
     const name = "StatusBar"
     const window = this.createWindow(name, options)
